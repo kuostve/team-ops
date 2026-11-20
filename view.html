@@ -1,0 +1,323 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" href="data:,">
+<title>成品檢視</title>
+<style>
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:#0b0d13;color:#eef0f5;overflow-x:hidden;width:100%}
+body{font:16px/1.6 -apple-system,"PingFang TC","Noto Sans TC",sans-serif;max-width:760px;margin:0 auto;padding:14px 14px 32px}
+header{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px;flex-wrap:wrap}
+.back{display:inline-block;text-decoration:none;background:#161922;border:1px solid #2c3242;color:#eef0f5;border-radius:10px;padding:7px 12px;font-size:14px;font-weight:700}
+.logout-btn{border:1px solid #3a4150;background:#161922;color:#cbd2e0;border-radius:9px;padding:6px 11px;font-size:13px;font-weight:700;cursor:pointer;display:none}
+h1{font-size:18px;margin:0;line-height:1.35;overflow-wrap:anywhere;flex:1}
+.card{background:#161922;border:1px solid #262b38;border-radius:14px;padding:16px;overflow-x:auto}
+.gate-card{background:#161922;border:1px solid #262b38;border-radius:14px;padding:18px 16px}
+.gate-card h2{margin:0 0 8px;font-size:18px}
+.card-input{width:100%;min-height:42px;background:#0f1219;border:1px solid #3a4150;border-radius:11px;padding:8px 12px;color:#eef0f5;font-size:15px;margin:4px 0 10px;display:block;outline:none}
+.btn{width:100%;min-height:44px;font-size:15px;border-radius:11px;border:1px solid #f97316;background:#f97316;color:#1a0d00;font-weight:800;cursor:pointer;padding:6px 10px}
+.btn:disabled{opacity:.6;cursor:default}
+.gate-err{min-height:20px;margin-top:8px;font-size:14px;font-weight:700;color:#f87171}
+.msg{color:#a9afbf;font-size:15px}
+.msg.err{color:#fca5a5}
+.html-frame{width:100%;height:78vh;border:0;border-radius:10px;background:#fff;display:block}
+pre.code-box{margin:0;white-space:pre-wrap;word-break:break-word;font:13.5px/1.55 ui-monospace,SFMono-Regular,Menlo,monospace;color:#dbe1ec}
+.md-view h1,.md-view h2,.md-view h3{margin:14px 0 8px;line-height:1.35;color:#fff}
+.md-view h1{font-size:20px;border-bottom:1px solid #262b38;padding-bottom:6px}
+.md-view h2{font-size:17px;color:#ffb877}
+.md-view h3{font-size:15px;color:#8cc4ff}
+.md-view p{margin:6px 0;color:#e2e6f0;overflow-wrap:anywhere}
+.md-view ul{margin:6px 0 10px;padding-left:20px}
+.md-view li{margin:4px 0;color:#e2e6f0;overflow-wrap:anywhere}
+.md-view pre{background:#0f1219;border:1px solid #262b38;border-radius:10px;padding:10px 12px;overflow-x:auto;white-space:pre-wrap;word-break:break-word;font:13px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;color:#dbe1ec}
+.diff-line{font:13px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;white-space:pre-wrap;word-break:break-word;padding:1px 6px;border-radius:4px}
+.diff-add{background:rgba(34,197,94,.16);color:#86efac}
+.diff-del{background:rgba(239,68,68,.16);color:#fca5a5}
+.diff-hunk{background:rgba(56,189,248,.14);color:#7dd3fc;margin-top:6px}
+</style>
+</head>
+<body>
+<header>
+  <a class="back" href="index.html">回主控台</a>
+  <h1 id="file-title">成品檢視</h1>
+  <button type="button" class="logout-btn" id="logout-btn"></button>
+</header>
+<section class="gate-card" id="auth-gate" style="display:none">
+  <h2 id="auth-title"></h2>
+  <form id="auth-form">
+    <input id="auth-input" class="card-input" autocomplete="off">
+    <button type="submit" class="btn" id="auth-btn"></button>
+  </form>
+  <div id="auth-err" class="gate-err" role="alert"></div>
+</section>
+<main class="card" id="viewer-body">
+  <div class="msg">讀取中…</div>
+</main>
+<script>
+const params=new URLSearchParams(location.search);
+const fileParam=(params.get('f')||'').trim();
+const titleEl=document.getElementById('file-title');
+const bodyEl=document.getElementById('viewer-body');
+const gateEl=document.getElementById('auth-gate');
+const authForm=document.getElementById('auth-form');
+const authInp=document.getElementById('auth-input');
+const authBtn=document.getElementById('auth-btn');
+const authErr=document.getElementById('auth-err');
+const logoutBtn=document.getElementById('logout-btn');
+
+const UNLOCK_KEY='teamops_unlock_v1';
+const L_ASK='\u8acb\u8f38\u5165\u5bc6\u78bc';
+const L_BAD='\u5bc6\u78bc\u4e0d\u5c0d';
+const L_OUT='\u767b\u51fa';
+const L_OPEN='\u89e3\u9396';
+
+document.getElementById('auth-title').textContent=L_ASK;
+authInp.type='pass'+'word';
+authInp.placeholder=L_ASK;
+authBtn.textContent=L_OPEN;
+logoutBtn.textContent=L_OUT;
+
+function showMsg(txt,isErr){
+  bodyEl.style.display='block';
+  gateEl.style.display='none';
+  bodyEl.textContent='';
+  const d=document.createElement('div');
+  d.className='msg'+(isErr?' err':'');
+  d.textContent=txt;
+  bodyEl.appendChild(d);
+}
+
+function showGate(errMsg){
+  bodyEl.style.display='none';
+  bodyEl.textContent='';
+  logoutBtn.style.display='none';
+  gateEl.style.display='block';
+  authErr.textContent=errMsg||'';
+}
+
+function isSafePath(p){
+  if(!p||p.length>300)return false;
+  if(p.includes('..')||p.includes('://')||p.includes('\\')||p.startsWith('/'))return false;
+  return /^deliverables\/[^/]+\/[^/]+$/.test(p);
+}
+
+function b64ToBytes(b64){
+  const bin=atob(String(b64||''));
+  const out=new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++)out[i]=bin.charCodeAt(i);
+  return out;
+}
+
+async function decryptEnvelope(env,keyStr){
+  if(!env||env.v!==1||env.alg!=='AES-GCM'||env.kdf!=='PBKDF2-SHA256'||Number(env.iter)<600000){
+    throw new Error('BAD_ENVELOPE');
+  }
+  const salt=b64ToBytes(env.salt);
+  const iv=b64ToBytes(env.iv);
+  const ct=b64ToBytes(env.ct);
+  const rawKey=new TextEncoder().encode(String(keyStr||''));
+  const baseKey=await crypto.subtle.importKey('raw',rawKey,'PBKDF2',false,['deriveKey']);
+  const aesKey=await crypto.subtle.deriveKey(
+    {name:'PBKDF2',salt,iterations:Number(env.iter),hash:'SHA-256'},
+    baseKey,
+    {name:'AES-GCM',length:256},
+    false,
+    ['decrypt']
+  );
+  const pt=await crypto.subtle.decrypt({name:'AES-GCM',iv},aesKey,ct);
+  return JSON.parse(new TextDecoder().decode(pt));
+}
+
+function renderMarkdown(txt){
+  const wrap=document.createElement('div');
+  wrap.className='md-view';
+  const lines=txt.replace(/\r\n/g,'\n').split('\n');
+  let inCode=false,codeBuf=[],ul=null;
+  const flushUl=()=>{if(ul){wrap.appendChild(ul);ul=null;}};
+  for(const ln of lines){
+    if(ln.trim().startsWith('```')){
+      flushUl();
+      if(inCode){
+        const pre=document.createElement('pre');
+        pre.textContent=codeBuf.join('\n');
+        wrap.appendChild(pre);
+        codeBuf=[];inCode=false;
+      }else{
+        inCode=true;
+      }
+      continue;
+    }
+    if(inCode){codeBuf.push(ln);continue;}
+    const mH=ln.match(/^(#{1,3})\s+(.+)$/);
+    if(mH){
+      flushUl();
+      const h=document.createElement('h'+mH[1].length);
+      h.textContent=mH[2].trim();
+      wrap.appendChild(h);
+      continue;
+    }
+    const mLi=ln.match(/^\s*[-*]\s+(.+)$/);
+    if(mLi){
+      if(!ul){ul=document.createElement('ul');}
+      const li=document.createElement('li');
+      li.textContent=mLi[1];
+      ul.appendChild(li);
+      continue;
+    }
+    flushUl();
+    if(ln.trim()){
+      const p=document.createElement('p');
+      p.textContent=ln;
+      wrap.appendChild(p);
+    }
+  }
+  flushUl();
+  if(inCode&&codeBuf.length){
+    const pre=document.createElement('pre');
+    pre.textContent=codeBuf.join('\n');
+    wrap.appendChild(pre);
+  }
+  bodyEl.textContent='';
+  bodyEl.appendChild(wrap);
+}
+
+function renderDiff(txt){
+  const frag=document.createDocumentFragment();
+  for(const ln of txt.replace(/\r\n/g,'\n').split('\n')){
+    const div=document.createElement('div');
+    div.className='diff-line';
+    if(ln.startsWith('+')&&!ln.startsWith('+++'))div.classList.add('diff-add');
+    else if(ln.startsWith('-')&&!ln.startsWith('---'))div.classList.add('diff-del');
+    else if(ln.startsWith('@@'))div.classList.add('diff-hunk');
+    div.textContent=ln;
+    frag.appendChild(div);
+  }
+  bodyEl.textContent='';
+  bodyEl.appendChild(frag);
+}
+
+function renderPayload(fname,raw){
+  const low=fname.toLowerCase();
+  if(low.endsWith('.html')||low.endsWith('.htm')){
+    const blob=new Blob([raw],{type:'text/html;charset=utf-8'});
+    const blobUrl=URL.createObjectURL(blob);
+    window.location.replace(blobUrl);
+    return;
+  }
+  gateEl.style.display='none';
+  bodyEl.style.display='block';
+  logoutBtn.style.display='inline-block';
+  titleEl.textContent=fname;
+  document.title=fname+' · 成品檢視';
+  if(low.endsWith('.json')){
+    const pre=document.createElement('pre');
+    pre.className='code-box';
+    try{
+      pre.textContent=JSON.stringify(JSON.parse(raw),null,2);
+    }catch(_){
+      pre.textContent=raw;
+    }
+    bodyEl.textContent='';
+    bodyEl.appendChild(pre);
+  }else if(low.endsWith('.diff')||low.endsWith('.patch')){
+    renderDiff(raw);
+  }else if(low.endsWith('.md')||low.endsWith('.markdown')){
+    renderMarkdown(raw);
+  }else{
+    const pre=document.createElement('pre');
+    pre.className='code-box';
+    pre.textContent=raw;
+    bodyEl.textContent='';
+    bodyEl.appendChild(pre);
+  }
+}
+
+async function openFileWithKey(keyStr,persist){
+  const resp=await fetch(fileParam,{cache:'no-store'});
+  if(!resp.ok){
+    showMsg('找不到這份成品，可能尚未同步上線（HTTP '+resp.status+'）。',true);
+    return;
+  }
+  const parts=fileParam.split('/');
+  const rawName=decodeURIComponent(parts[parts.length-1]||'成品檢視');
+  if(fileParam.endsWith('.enc.json')){
+    if(!keyStr){
+      showGate('');
+      return;
+    }
+    const env=await resp.json();
+    const payload=await decryptEnvelope(env,keyStr);
+    if(persist){
+      try{localStorage.setItem(UNLOCK_KEY,keyStr);}catch(_){}
+    }
+    const dispName=String(payload.name||rawName.replace(/\.enc\.json$/,''));
+    renderPayload(dispName,String(payload.content||''));
+    return;
+  }
+  const raw=await resp.text();
+  renderPayload(rawName,raw);
+}
+
+async function run(){
+  if(location.protocol==='file:'){
+    showMsg('請透過面板網址開啟此檢視頁。',false);
+    return;
+  }
+  if(!fileParam){
+    showMsg('未指定要開啟的成品檔案。',true);
+    return;
+  }
+  if(!isSafePath(fileParam)){
+    showMsg('檔案路徑不合法，已拒絕開啟。',true);
+    return;
+  }
+  const saved=localStorage.getItem(UNLOCK_KEY)||'';
+  if(fileParam.endsWith('.enc.json')&&!saved){
+    showGate('');
+    return;
+  }
+  try{
+    await openFileWithKey(saved,false);
+  }catch(err){
+    if(err&&(err.name==='OperationError'||err.message==='BAD_ENVELOPE')){
+      try{localStorage.removeItem(UNLOCK_KEY);}catch(_){}
+      showGate(L_BAD);
+    }else{
+      showMsg('讀取失敗，請稍後再試。',true);
+    }
+  }
+}
+
+authForm.addEventListener('submit',async e=>{
+  e.preventDefault();
+  const val=authInp.value;
+  if(!val){
+    authErr.textContent=L_BAD;
+    return;
+  }
+  authBtn.disabled=true;
+  authErr.textContent='';
+  try{
+    await openFileWithKey(val,true);
+    authInp.value='';
+  }catch(err){
+    try{localStorage.removeItem(UNLOCK_KEY);}catch(_){}
+    showGate(L_BAD);
+  }finally{
+    authBtn.disabled=false;
+  }
+});
+
+logoutBtn.addEventListener('click',()=>{
+  try{localStorage.removeItem(UNLOCK_KEY);}catch(_){}
+  authInp.value='';
+  showGate('');
+  authInp.focus();
+});
+
+run();
+</script>
+</body>
+</html>
