@@ -695,11 +695,14 @@ function renderQuotaFooter(q){
   const spendHtml='<div class="q-sec">花費（OpenRouter 現金）</div><div class="q-cost">'
     +[['今天',sp.today_usd],['本週',sp.week_usd]].map(x=>'<div class="q-card"><div class="q-rs">'+x[0]+'</div><div class="q-big">'+(sp.ok&&x[1]!=null?fmtUsd(x[1]):'查不到')+'</div></div>').join('')
     +'</div>'+(sp.ok&&sp.credits_left_usd!=null?'<div class="q-note">帳戶餘額 '+fmtUsd(sp.credits_left_usd)+'（更新 '+E(String(sp.fetched_at||'').slice(5,16).replace('T',' '))+' UTC）</div>':'');
+  const st=q.startup||{};
+  const startupHtml=(st.ok&&Array.isArray(st.over)&&st.over.length)?'<div class="q-sec">起始成本超標（新對話第一次呼叫）</div>'
+    +st.over.map(x=>'<div class="q-note">'+E(x.level)+'燈 '+E(x.bot)+' '+(Number(x.size)/10000).toFixed(1)+' 萬；最大：'+E((x.top3||[]).join('、'))+'</div>').join(''):'';
   listEl.innerHTML=ringHtml()
     +(mains.length?'<div class="q-sec">訂閱主力・左右滑</div>'+sc(mains):'')
     +(others.length?'<div class="q-sec">其他</div>'+sc(others):'')
     +(deads.length?'<div class="q-sec">已用完</div>'+sc(deads):'')
-    +spendHtml;
+    +spendHtml+startupHtml;
 }
 
 function renderAll(d){
