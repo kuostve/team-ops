@@ -118,7 +118,7 @@ footer.quota-foot{margin-top:14px}
 .q-avg{font-size:11.5px;font-weight:600;color:#949bad;margin-right:auto;white-space:nowrap}
 .q-pill{font-size:10.5px;padding:2px 8px;border-radius:99px;font-weight:700;color:#000;white-space:nowrap}
 .q-pill.q-c-k{color:#fff}
-.q-c-g{background:#30d158}.q-c-y{background:#ffd60a}.q-c-r{background:#ff453a}.q-c-k{background:#6b6b76}
+.q-c-g{background:#30d158}.q-c-y{background:#ffd60a}.q-c-r{background:#ff453a}.q-c-k{background:#6b6b76}.q-c-u{background:#3a4150;color:#cbd2e0}
 .q-seg{margin-top:8px}
 .q-sl{display:flex;justify-content:space-between;gap:8px;font-size:12.5px}
 .q-sl span:first-child{font-weight:700}
@@ -597,12 +597,13 @@ function renderQuotaFooter(q){
     return Math.max(1,Math.round(s/60))+'分鐘後';};
   const lvCls={'綠':'g','黃':'y','紅':'r','黑':'k'};
   const isDead=it=>it.dead===true||it.level==='黑';
-  const cnt={dead:0,tight:0,ok:0};
-  items.forEach(it=>{if(isDead(it))cnt.dead++;else if(it.level==='紅'||it.level==='黃')cnt.tight++;else cnt.ok++;});
+  const isUnknown=it=>!isDead(it)&&it.level==null&&!(Array.isArray(it.segs)&&it.segs.some(sg=>sg&&sg.used_pct!=null));
+  const cnt={dead:0,tight:0,ok:0,unk:0};
+  items.forEach(it=>{if(isDead(it))cnt.dead++;else if(isUnknown(it))cnt.unk++;else if(it.level==='紅'||it.level==='黃')cnt.tight++;else cnt.ok++;});
   if(wrap)wrap.classList.toggle('low',cnt.dead>0&&items.some(it=>it.ring&&isDead(it)));
   if(sumEl){
     sumEl.textContent=items.length
-      ?'額度 '+[['k',cnt.dead,'用完'],['y',cnt.tight,'吃緊'],['g',cnt.ok,'正常']].filter(x=>x[1]).map(x=>'● '+x[1]+' '+x[2]).join('  ')+'（點開看）'
+      ?'額度 '+[['k',cnt.dead,'用完'],['y',cnt.tight,'吃緊'],['g',cnt.ok,'正常'],['u',cnt.unk,'不明']].filter(x=>x[1]).map(x=>'● '+x[1]+' '+x[2]).join('  ')+'（點開看）'
       :'額度：尚無資料（點開看）';
   }
   if(!items.length){listEl.innerHTML='<div class="q-empty">目前沒有額度資料</div>';return;}
@@ -631,6 +632,7 @@ function renderQuotaFooter(q){
       +(rs?'<div class="q-rs">'+rs+'</div>':'')+h5Warn+proj+'</div>';
   };
   const card=it=>{
+    if(isUnknown(it))return '<div class="q-card"><h3><span>'+E(it.model||it.name)+'</span><span class="q-pill q-c-u">不明</span></h3><div class="q-rs">'+E(it.sub||'沒有數字')+'</div></div>';
     const dead=isDead(it),cls=dead?'k':(lvCls[it.level]||'g');
     const pill=dead?'已用完':(it.level==='紅'?'吃緊':it.level==='黃'?'偏快':'穩');
     const segs=Array.isArray(it.segs)?it.segs:[];
