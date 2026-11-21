@@ -100,20 +100,22 @@ footer.quota-foot{margin-top:14px}
 .quota-foot summary::marker{content:''}
 .q-empty{font-size:12px;color:#949bad;padding:2px 10px 8px}
 #quota-list{padding:2px 10px 10px;max-width:460px;margin:0 auto;overflow:hidden}
-.q-hero{display:flex;align-items:center;gap:10px;background:#0d0f15;border-radius:16px;padding:10px}
-.q-hero svg{flex:0 0 132px}
+.q-hero{display:flex;align-items:center;gap:8px;background:#0d0f15;border-radius:16px;padding:10px 8px}
+.q-hero svg{flex:0 0 118px}
 .q-legs{flex:1;min-width:0;display:grid;gap:7px}
-.q-leg{display:flex;align-items:center;gap:7px;min-width:0}
+.q-leg{display:flex;align-items:center;gap:6px;min-width:0}
 .q-leg i{width:9px;height:9px;border-radius:50%;flex:0 0 9px}
-.q-leg b{display:block;font-size:12.5px;color:#eef0f5}
-.q-leg span{display:block;font-size:11.5px;color:#949bad;overflow-wrap:anywhere}.q-leg span b{display:inline;font-size:inherit}
+.q-leg>div>b{display:block;font-size:12px;color:#eef0f5;white-space:nowrap}
+.q-leg span{display:block;font-size:11px;color:#949bad;white-space:nowrap}.q-leg span b{display:inline;font-size:inherit}
 .q-note{font-size:10.5px;color:#949bad;margin:6px 2px}
 .q-sec{font-size:11.5px;color:#949bad;margin:12px 2px 6px;letter-spacing:.5px}
 .q-scroller{display:flex;gap:9px;overflow-x:auto;scroll-snap-type:x mandatory;padding-bottom:6px;scrollbar-width:none}
 .q-scroller::-webkit-scrollbar{display:none}
 .q-scroller .q-card{flex:0 0 82%;scroll-snap-align:start}
+.q-scroller .q-card:only-child{flex:1 1 auto}
 .q-card{background:#0d0f15;border-radius:14px;padding:11px;min-width:0}
 .q-card h3{font-size:14px;display:flex;justify-content:space-between;align-items:center;gap:8px;margin:0 0 6px}
+.q-avg{font-size:11.5px;font-weight:600;color:#949bad;margin-right:auto;white-space:nowrap}
 .q-pill{font-size:10.5px;padding:2px 8px;border-radius:99px;font-weight:700;color:#000;white-space:nowrap}
 .q-pill.q-c-k{color:#fff}
 .q-c-g{background:#30d158}.q-c-y{background:#ffd60a}.q-c-r{background:#ff453a}.q-c-k{background:#6b6b76}
@@ -125,7 +127,12 @@ footer.quota-foot{margin-top:14px}
 .q-fill2{position:absolute;left:0;top:0;bottom:0;border-radius:6px}
 .q-tick{position:absolute;top:-3px;width:2px;height:15px;background:#fff;border-radius:1px}
 .q-rs{font-size:11.5px;color:#949bad;overflow-wrap:anywhere}
+.q-accts{font-size:11.5px;color:#cbd2e0;margin-top:6px;line-height:1.4}
+.q-accts-rs{font-size:11px;color:#949bad;margin-top:2px;line-height:1.4;overflow-wrap:anywhere}
 .q-proj{font-size:11.5px;color:#ffd60a;margin-top:4px;overflow-wrap:anywhere}
+.q-h5-tag,.q-ring-acct{display:inline-block;font-size:10px;font-weight:600;color:#949bad;background:#1d2536;border:1px solid #323c52;border-radius:4px;padding:0 5px;margin-left:5px;vertical-align:1px}
+.q-h5-warn{font-size:11.5px;color:#ffd60a;margin-top:4px;overflow-wrap:anywhere}
+.q-h5-warn.stop{color:#ff453a}
 .q-over{color:#ff453a}.q-ok{color:#30d158}
 .q-dead{opacity:.72}
 .q-cost{display:grid;grid-template-columns:1fr 1fr;gap:9px}
@@ -574,15 +581,20 @@ function renderQuotaFooter(q){
   const sumEl=document.getElementById('quota-sum');
   const wrap=document.getElementById('quota-wrap');
   if(!listEl)return;
-  const items=(Array.isArray(q.items)?q.items:[]).filter(it=>it&&(it.model||it.name));
+  const isArgon=it=>/argon|G認真/i.test(String((it&&it.model)||'')+' '+String((it&&it.name)||''));
+  const items=(Array.isArray(q.items)?q.items:[]).filter(it=>it&&(it.model||it.name)&&!isArgon(it));
   const now=Date.now()/1000;
-  const WD=['日','一','二','三','四','五','六'],p2=n=>String(n).padStart(2,'0');
+  const p2=n=>String(n).padStart(2,'0');
   const fmtAt=ep=>{const t=new Date(ep*1000),n=new Date();
     const d=Math.round((new Date(t.getFullYear(),t.getMonth(),t.getDate())-new Date(n.getFullYear(),n.getMonth(),n.getDate()))/864e5);
     const hm=p2(t.getHours())+':'+p2(t.getMinutes());
-    return d<=0?'今天 '+hm:d===1?'明天 '+hm:'週'+WD[t.getDay()]+' '+hm;};
+    return d<=0?'今天 '+hm:d===1?'明天 '+hm:(t.getMonth()+1)+'/'+p2(t.getDate())+' '+hm;};
   const fmtLeft=sec=>{const m=Math.max(0,Math.round(sec/60)),d=Math.floor(m/1440),h=Math.floor(m%1440/60),mi=m%60;
     return d?d+' 天 '+h+' 小時':h?h+' 小時 '+mi+' 分':mi+' 分';};
+  const fmtAfter=sec=>{const s=Math.max(60,Number(sec)||0);
+    if(s>=86400)return Math.round(s/86400)+'天後';
+    if(s>=3600)return Math.round(s/3600)+'小時後';
+    return Math.max(1,Math.round(s/60))+'分鐘後';};
   const lvCls={'綠':'g','黃':'y','紅':'r','黑':'k'};
   const isDead=it=>it.dead===true||it.level==='黑';
   const cnt={dead:0,tight:0,ok:0};
@@ -595,47 +607,83 @@ function renderQuotaFooter(q){
   }
   if(!items.length){listEl.innerHTML='<div class="q-empty">目前沒有額度資料</div>';return;}
   const segText=sg=>{
+    if(sg.used_pct==null)return '讀不到';
+    if(sg.dead&&Math.round(sg.used_pct)>=100)return '已用完';
     if(sg.diff_pct==null)return '用了 '+Math.round(sg.used_pct)+'%';
     const d=Math.round(sg.diff_pct);
     return '用了 '+Math.round(sg.used_pct)+'%｜'+(d>0?'<b class="q-over">超額 '+d+'%</b>':'<b class="q-ok">餘裕 '+(-d)+'%</b>');
   };
   const segBlock=(sg,cls)=>{
+    if(sg.used_pct==null){
+      return '<div class="q-seg"><div class="q-sl"><span>'+E(sg.label)+'</span><span class="q-rs">讀不到</span></div><div class="q-bar2"></div></div>';
+    }
     const fill=Math.max(0,Math.min(100,Number(sg.used_pct)||0));
+    const isH5=sg.label==='5 小時';
+    const rem=sg.rem_pct!=null?Number(sg.rem_pct):(100-fill);
+    const barCls=sg.dead?'k':(isH5?(rem<=5?'r':rem<15?'y':'g'):cls);
+    const lbl=isH5?E(sg.label)+'<small class="q-h5-tag">接任務用</small>':E(sg.label);
     const tick=sg.elapsed_pct==null?'':'<span class="q-tick" style="left:'+Math.max(0,Math.min(99,Number(sg.elapsed_pct)))+'%"></span>';
     const rs=sg.reset_epoch?fmtAt(sg.reset_epoch)+' 重設（還有 '+fmtLeft(sg.reset_epoch-now)+'）':(sg.label==='餘額'?'無固定重設時間':'');
-    const proj=sg.exhaust_epoch?'<div class="q-proj">⚠ 照目前速度約 '+fmtAt(sg.exhaust_epoch)+' 用完（比重設早 '+fmtLeft(sg.reset_epoch-sg.exhaust_epoch)+'）</div>':'';
-    return '<div class="q-seg"><div class="q-sl"><span>'+E(sg.label)+'</span><span>'+segText(sg)+'</span></div>'
-      +'<div class="q-bar2"><span class="q-fill2 q-c-'+cls+'" style="width:'+fill+'%"></span>'+tick+'</div>'
-      +(rs?'<div class="q-rs">'+rs+'</div>':'')+proj+'</div>';
+    const h5Warn=isH5?(rem<=5?'<div class="q-h5-warn stop">⚠ 現在別接（等重設後再接）</div>':(rem<15?'<div class="q-h5-warn">⚠ 現在不要接大件（等重設後再接）</div>':'')):'';
+    const proj=sg.exhaust_epoch?'<div class="q-proj">⚠ 照目前速度約'+fmtAfter(sg.exhaust_epoch-now)+'用完（提早 '+fmtLeft(sg.reset_epoch-sg.exhaust_epoch)+'）</div>':'';
+    return '<div class="q-seg"><div class="q-sl"><span>'+lbl+'</span><span>'+segText(sg)+'</span></div>'
+      +'<div class="q-bar2"><span class="q-fill2 q-c-'+barCls+'" style="width:'+fill+'%"></span>'+tick+'</div>'
+      +(rs?'<div class="q-rs">'+rs+'</div>':'')+h5Warn+proj+'</div>';
   };
   const card=it=>{
     const dead=isDead(it),cls=dead?'k':(lvCls[it.level]||'g');
     const pill=dead?'已用完':(it.level==='紅'?'吃緊':it.level==='黃'?'偏快':'穩');
     const segs=Array.isArray(it.segs)?it.segs:[];
+    const accts=Array.isArray(it.accounts)&&it.accounts.length>1?it.accounts:null;
+    const segCls=sg=>{
+      if(accts){
+        const a=accts.find(x=>sg.label===x.account+' 本週'||sg.label.startsWith(x.account+' '));
+        if(a&&a.level&&lvCls[a.level])return lvCls[a.level];
+      }
+      return cls;
+    };
     let body;
-    if(dead){const sg=segs.find(x=>x.reset_epoch)||segs[0];
-      body='<div class="q-rs" style="margin-top:6px">已用完'+(sg&&sg.reset_epoch?'・'+fmtAt(sg.reset_epoch)+' 重設（還有 '+fmtLeft(sg.reset_epoch-now)+'）':'')+'</div>';}
-    else body=segs.map(sg=>segBlock(sg,cls)).join('')||'<div class="q-rs">沒有數字</div>';
+    if(dead&&!accts){
+      const sg=segs.find(x=>x.reset_epoch)||segs[0];
+      body='<div class="q-rs" style="margin-top:6px">已用完'+(sg&&sg.reset_epoch?'・'+fmtAt(sg.reset_epoch)+' 重設（還有 '+fmtLeft(sg.reset_epoch-now)+'）':'')+'</div>';
+    }else{
+      body=segs.map(sg=>segBlock(sg,segCls(sg))).join('')||'<div class="q-rs">沒有數字</div>';
+    }
     return '<div class="q-card'+(dead?' q-dead':'')+'"><h3><span>'+E(it.model||it.name)+'</span><span class="q-pill q-c-'+cls+'">'+pill+'</span></h3>'+body+'</div>';
   };
-  // 圈：訂閱主力，外→內 = 傳進來的順序（Claude、Grok、Gemini Flash）；白點 = 時間已過
-  const ringOrder=['Claude','Grok','Gemini Flash'];
+  // 圈：訂閱主力，外→內 = Claude、Grok、Gemini；白點 = 時間已過；雙帳號取剩餘較多帳號
+  const ringOrder=['Claude','Grok','Gemini','Gemini Flash'];
   const ringItems=items.filter(it=>it.ring).sort((a,b)=>ringOrder.indexOf(a.model)-ringOrder.indexOf(b.model));
-  const ringCol={'Claude':'#fb923c','Grok':'#60a5fa','Gemini Flash':'#4ade80'};
+  const ringCol={'Claude':'#fb923c','Grok':'#60a5fa','Gemini':'#4ade80','Gemini Flash':'#4ade80'};
+  const pickRingSeg=it=>{
+    const valid=(it.segs||[]).filter(x=>x&&x.used_pct!=null);
+    if(!valid.length)return null;
+    if(it.ring_account){
+      const hit=valid.find(x=>x.label===it.ring_account+' 本週'||x.label.startsWith(it.ring_account+' '));
+      if(hit)return hit;
+    }
+    if(Array.isArray(it.accounts)&&it.accounts.length>1){
+      return valid.reduce((best,x)=>((x.rem_pct!=null?x.rem_pct:100-x.used_pct)>(best.rem_pct!=null?best.rem_pct:100-best.used_pct)?x:best),valid[0]);
+    }
+    return valid.find(x=>x.label==='本週'||x.label==='今日')||valid[0];
+  };
   const ringHtml=()=>{
     if(!ringItems.length)return '';
-    let svg='',legend='';const cx=75,cy=75;
+    let svg='',legend='',centerAcct='';const cx=75,cy=75;
     ringItems.forEach((it,i)=>{
-      const sg=(it.segs||[]).find(x=>x.label==='本週'||x.label==='今日')||(it.segs||[])[0];if(!sg)return;
+      const sg=pickRingSeg(it);if(!sg)return;
       const R=66-i*15,w=11,C=2*Math.PI*R,f=Math.min(1,(Number(sg.used_pct)||0)/100),col=ringCol[it.model]||'#9aa3b5';
       svg+='<circle cx="'+cx+'" cy="'+cy+'" r="'+R+'" fill="none" stroke="'+col+'" stroke-opacity=".18" stroke-width="'+w+'"/>'
         +'<circle cx="'+cx+'" cy="'+cy+'" r="'+R+'" fill="none" stroke="'+col+'" stroke-width="'+w+'" stroke-linecap="round" stroke-dasharray="'+(C*f).toFixed(1)+' '+C.toFixed(1)+'" transform="rotate(-90 '+cx+' '+cy+')"/>';
       if(sg.elapsed_pct!=null){const a=(Number(sg.elapsed_pct)/100)*2*Math.PI-Math.PI/2;
         svg+='<circle cx="'+(cx+R*Math.cos(a)).toFixed(1)+'" cy="'+(cy+R*Math.sin(a)).toFixed(1)+'" r="2.8" fill="#fff"/>';}
-      legend+='<div class="q-leg"><i style="background:'+col+'"></i><div><b>'+E(it.model)+' 本週</b><span>'+segText(sg)+'</span></div></div>';
+      const acctTag=it.ring_account||((Array.isArray(it.accounts)&&it.accounts.length>1)?sg.label.replace(/\s*本週$/,''):'');
+      if(acctTag&&!centerAcct)centerAcct='<text x="75" y="92" text-anchor="middle" fill="'+col+'" font-size="7.5" class="q-ring-center-acct">'+E(it.model)+'·'+E(acctTag)+'</text>';
+      legend+='<div class="q-leg"><i style="background:'+col+'"></i><div><b>'+E(it.model)+' 本週'+(acctTag?'<small class="q-ring-acct">'+E(acctTag)+'</small>':'')+'</b><span>'+segText(sg)+'</span></div></div>';
     });
-    return '<div class="q-hero"><svg viewBox="0 0 150 150" width="132" height="132" role="img" aria-label="訂閱主力額度圈">'+svg
-      +'<text x="75" y="72" text-anchor="middle" fill="#949bad" font-size="9">訂閱主力</text><text x="75" y="86" text-anchor="middle" fill="#fff" font-size="12" font-weight="700">'+ringItems.length+' 個</text></svg>'
+    const y1=centerAcct?'66':'72',y2=centerAcct?'80':'86';
+    return '<div class="q-hero"><svg viewBox="0 0 150 150" width="118" height="118" role="img" aria-label="訂閱主力額度圈">'+svg
+      +'<text x="75" y="'+y1+'" text-anchor="middle" fill="#949bad" font-size="9">訂閱主力</text><text x="75" y="'+y2+'" text-anchor="middle" fill="#fff" font-size="12" font-weight="700">'+ringItems.length+' 個</text>'+centerAcct+'</svg>'
       +'<div class="q-legs">'+legend+'</div></div><div class="q-note">圈＝已用量；白點＝這個週期已過的時間。圈跑在白點前面＝用得比時間快（超額）。</div>';
   };
   const mains=ringItems.filter(it=>!isDead(it)),others=items.filter(it=>!it.ring&&!isDead(it)),deads=items.filter(isDead);
